@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install
 COPY . .
-RUN bun run build
+RUN bun run build-only
 
 # Production stage
 FROM nginx:alpine
