@@ -1,0 +1,19 @@
+{
+  "name": "viewpoint",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "lint:frontend": "cd frontend && bun run lint",
+    "lint:backend": "cd backend && golangci-lint run --fix",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "frontend/**/*.{ts,tsx,vue}": "bun run lint:frontend",
+    "frontend/**/*.{json,css}": "prettier --write --config frontend/.prettierrc.json",
+    "backend/**/*.go": "bun run lint:backend"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0"
+  }
+}

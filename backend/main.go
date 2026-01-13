@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +20,9 @@ func main() {
 	r.POST("/api/users", createUser)
 	r.GET("/api/users/:id", getUser)
 
-	r.Run(":8080")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal(err)
+	}
 }
 
 type User struct {

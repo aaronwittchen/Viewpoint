@@ -1,2 +1,6 @@
 .env
 .env.*
+
+# Dependencies
+node_modules/
+bun.lockb
