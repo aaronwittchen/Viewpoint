@@ -21,6 +21,7 @@ jobs:
 
   test-frontend:
     name: Test Frontend
+    needs: [lint-frontend, lint-backend, trivy-fs, trivy-config]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -33,6 +34,7 @@ jobs:
 
   build-frontend:
     name: Build Frontend
+    needs: test-frontend
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,3 +59,148 @@ jobs:
       - uses: golangci/golangci-lint-action@v6
         with:
           working-directory: backend
+
+  test-backend:
+    name: Test Backend
+    needs: [lint-frontend, lint-backend, trivy-fs, trivy-config]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - run: go test ./...
+
+  build-backend:
+    name: Build Backend
+    needs: test-backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - run: go build -o viewpoint-backend .
+
+  trivy-fs:
+    name: Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.29.0
+        with:
+          version: v0.68.2
+          scan-type: fs
+          scan-ref: .
+          exit-code: 1
+
+  trivy-config:
+    name: Trivy Config Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.29.0
+        with:
+          version: v0.68.2
+          scan-type: config
+          scan-ref: k8s
+          exit-code: 1
+          trivyignores: .trivyignore
+
+  build-images:
+    name: Build Docker Images
+    needs: [build-frontend, build-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: false
+          tags: viewpoint-frontend:ci
+          outputs: type=docker,dest=/tmp/frontend.tar
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          tags: viewpoint-backend:ci
+          outputs: type=docker,dest=/tmp/backend.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: /tmp/*.tar
+          retention-days: 1
+
+  trivy-image:
+    name: Trivy Image Scan
+    needs: build-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+          path: /tmp
+      - run: |
+          docker load -i /tmp/frontend.tar
+          docker load -i /tmp/backend.tar
+      - uses: aquasecurity/trivy-action@0.29.0
+        with:
+          version: v0.68.2
+          image-ref: viewpoint-frontend:ci
+          exit-code: 1
+      - uses: aquasecurity/trivy-action@0.29.0
+        with:
+          version: v0.68.2
+          image-ref: viewpoint-backend:ci
+          exit-code: 1
+
+  push-images:
+    name: Push to ghcr.io
+    needs: trivy-image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/viewpoint-frontend:latest
+            ghcr.io/${{ github.repository_owner }}/viewpoint-frontend:${{ github.sha }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/viewpoint-backend:latest
+            ghcr.io/${{ github.repository_owner }}/viewpoint-backend:${{ github.sha }}
+      - name: Update deployment manifests
+        run: |
+          sed -i "s|image: ghcr.io/.*/viewpoint-frontend:.*|image: ghcr.io/${{ github.repository_owner }}/viewpoint-frontend:${{ github.sha }}|" k8s/base/deployment.yaml
+          sed -i "s|image: ghcr.io/.*/viewpoint-backend:.*|image: ghcr.io/${{ github.repository_owner }}/viewpoint-backend:${{ github.sha }}|" k8s/base/deployment.yaml
+      - name: Commit updated manifests
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/base/deployment.yaml
+          git diff --staged --quiet || git commit -m "chore: update image tags to ${{ github.sha }} [skip ci]"
+          git push
