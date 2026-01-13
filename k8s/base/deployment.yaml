@@ -17,10 +17,13 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: onionn/viewpoint-frontend:latest
+          image: ghcr.io/aaronwittchen/viewpoint-frontend:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           resources:
             requests:
@@ -32,13 +35,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /
-              port: 80
+              port: 8080
             initialDelaySeconds: 10
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /
-              port: 80
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
 ---
@@ -56,7 +59,7 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: 80
+      targetPort: 8080
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -77,8 +80,11 @@ spec:
     spec:
       containers:
         - name: backend
-          image: onionn/viewpoint-backend:latest
+          image: ghcr.io/aaronwittchen/viewpoint-backend:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
           ports:
             - containerPort: 8080
               name: http
