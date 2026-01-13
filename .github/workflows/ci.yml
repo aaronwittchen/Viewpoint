@@ -21,6 +21,7 @@ jobs:
 
   test-frontend:
     name: Test Frontend
+    needs: [lint-frontend, lint-backend, trivy-fs, trivy-config]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -33,6 +34,7 @@ jobs:
 
   build-frontend:
     name: Build Frontend
+    needs: test-frontend
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,3 +59,71 @@ jobs:
       - uses: golangci/golangci-lint-action@v6
         with:
           working-directory: backend
+
+  trivy-fs:
+    name: Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          exit-code: 1
+
+  trivy-config:
+    name: Trivy Config Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: k8s
+          exit-code: 1
+
+  build-images:
+    name: Build Docker Images
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: false
+          tags: viewpoint-frontend:ci
+          outputs: type=docker,dest=/tmp/frontend.tar
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          tags: viewpoint-backend:ci
+          outputs: type=docker,dest=/tmp/backend.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: /tmp/*.tar
+          retention-days: 1
+
+  trivy-image:
+    name: Trivy Image Scan
+    needs: build-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+          path: /tmp
+      - run: |
+          docker load -i /tmp/frontend.tar
+          docker load -i /tmp/backend.tar
+      - uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: viewpoint-frontend:ci
+          exit-code: 1
+      - uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: viewpoint-backend:ci
+          exit-code: 1
