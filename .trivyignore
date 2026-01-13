@@ -1,2 +1,5 @@
 # ghcr.io is a trusted registry (GitHub Container Registry)
 AVD-KSV-0125
+
+# ArgoCD Image Updater uses digest strategy to pin :latest to specific SHA
+AVD-KSV-0013
