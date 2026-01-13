@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: ghcr.io/aaronwittchen/viewpoint-frontend:v0.1.0
+          image: ghcr.io/aaronwittchen/viewpoint-frontend:latest
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -102,7 +102,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: backend
-          image: ghcr.io/aaronwittchen/viewpoint-backend:v0.1.0
+          image: ghcr.io/aaronwittchen/viewpoint-backend:latest
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
