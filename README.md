@@ -1,5 +1,7 @@
 # Viewpoint
 
+![CI](https://github.com/aaronwittchen/Viewpoint/actions/workflows/ci.yml/badge.svg)
+
 A Vue 3 + Go web application with TypeScript support.
 
 ## Stack
