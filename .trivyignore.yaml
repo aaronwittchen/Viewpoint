@@ -1,0 +1,7 @@
+# ghcr.io is a trusted registry (GitHub Container Registry)
+# This check gives false positives for ghcr.io
+misconfigurations:
+  - id: AVD-KSV-0125
+    paths:
+      - k8s/base/deployment.yaml
+    statement: "ghcr.io is a trusted registry maintained by GitHub"
