@@ -60,6 +60,34 @@ jobs:
         with:
           working-directory: backend
 
+  test-backend:
+    name: Test Backend
+    needs: [lint-frontend, lint-backend, trivy-fs, trivy-config]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - run: go test ./...
+
+  build-backend:
+    name: Build Backend
+    needs: test-backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - run: go build -o viewpoint-backend .
+
   trivy-fs:
     name: Trivy Filesystem Scan
     runs-on: ubuntu-latest
@@ -87,7 +115,7 @@ jobs:
 
   build-images:
     name: Build Docker Images
-    needs: build-frontend
+    needs: [build-frontend, build-backend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
