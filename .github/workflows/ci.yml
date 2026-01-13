@@ -83,7 +83,7 @@ jobs:
           scan-type: config
           scan-ref: k8s
           exit-code: 1
-          trivyignores: .trivyignore.yaml
+          trivyignores: .trivyignore
 
   build-images:
     name: Build Docker Images

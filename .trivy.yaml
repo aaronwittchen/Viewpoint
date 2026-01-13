@@ -1,6 +1,0 @@
-misconfiguration:
-  ksv:
-    trusted-registries:
-      - ghcr.io
-      - gcr.io
-      - registry.k8s.io
